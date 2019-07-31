@@ -2,4 +2,5 @@
     package="com.islamdidarmd.adblockerwebview">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <application android:usesCleartextTraffic="true"/>
 </manifest>
