@@ -1,3 +1,6 @@
 <resources>
     <string name="app_name">Adblocker Webview Sample</string>
+    <string name="enter_url">Enter Url</string>
+    <string name="block_ads">Block Ads</string>
+    <string name="go">GO</string>
 </resources>

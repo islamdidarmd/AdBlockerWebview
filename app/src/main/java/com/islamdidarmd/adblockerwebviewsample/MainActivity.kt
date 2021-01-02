@@ -1,18 +1,13 @@
 package com.islamdidarmd.adblockerwebviewsample
 
 import android.graphics.Bitmap
-import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
-import android.support.v7.widget.AppCompatEditText
 import android.util.Log
 import android.view.View
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.widget.Button
-import android.widget.LinearLayout
-import android.widget.Switch
-import com.islamdidarmd.adblockerwebview.AdBlockerWebView
+import androidx.appcompat.app.AppCompatActivity
 import kotlinx.android.synthetic.main.activity_main.*
 
 class MainActivity : AppCompatActivity() {
@@ -22,10 +17,12 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        webview.settings.javaScriptEnabled = true
-        webview.settings.domStorageEnabled = true
+        webview.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+        }
 
-        webview.webViewClient = object: WebViewClient(){
+        webview.webViewClient = object : WebViewClient() {
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                 super.onPageStarted(view, url, favicon)
                 Log.d(TAG, "onPageStarted $url")
@@ -44,8 +41,11 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        switchAdblock.setOnCheckedChangeListener { buttonView, isChecked ->
+            webview.setAdBlockEnabled(isChecked)
+        }
+
         btnGo.setOnClickListener {
-            webview.setAdBlockEnabled(switchAdblock.isChecked)
             webview.visibility = View.VISIBLE
             editor.visibility = View.GONE
 

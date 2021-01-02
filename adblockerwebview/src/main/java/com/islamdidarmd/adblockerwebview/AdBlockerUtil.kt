@@ -2,35 +2,42 @@ package com.islamdidarmd.adblockerwebview
 
 import android.content.Context
 import android.net.Uri
-import android.os.AsyncTask
-import android.os.Handler
-import android.util.Log
 import android.webkit.WebResourceResponse
-import java.io.*
-import java.net.URL
+import kotlinx.coroutines.*
+import okhttp3.*
+import okio.buffer
+import okio.source
+import java.io.ByteArrayInputStream
+import java.io.IOException
+import java.io.InputStream
 
 class AdBlockerUtil(context: Context) {
     val TAG = "AdBlockerUtil"
     private val AD_HOSTS_FILE_NAME = "adblocker_webview_hosts.txt"
-    private val hostsList: MutableList<String> = ArrayList()
+    private val hostsList = mutableListOf<String>()
 
     init {
-        //loading hostnames from asset
-        loadHostsFromInputStream(context.assets.open(AD_HOSTS_FILE_NAME))
-
-        //updating list from server
-        loadHostFromServer()
+        CoroutineScope(Dispatchers.Default).launch {
+            //loading hostname from asset
+            withContext(Dispatchers.IO) {
+                try {
+                    loadHostsFromInputStream(context.assets.open(AD_HOSTS_FILE_NAME))
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+            delay(200)
+            //updating list from server
+            loadHostFromServer()
+        }
     }
-
 
     fun isAd(url: String?): Boolean {
         if (url == null) return false
         val host = Uri.parse(url).host ?: return false
 
-        Log.d(TAG, "Matching host $host...")
         hostsList.forEach {
             if (host.contains(it)) {
-                Log.d(TAG, "$url is Ad")
                 return true
             }
         }
@@ -41,50 +48,43 @@ class AdBlockerUtil(context: Context) {
         return WebResourceResponse("text/plain", "utf-8", ByteArrayInputStream("".toByteArray()))
     }
 
-
     private fun loadHostsFromInputStream(inputStream: InputStream?) {
         if (inputStream == null) {
-            Log.d(TAG, "inputStream is null. Returning....")
             return
         }
 
-        Log.d(TAG, "Loading hosts...")
-        var reader: BufferedReader? = null
+        val tempList: MutableList<String> = ArrayList()
 
-        try {
-            reader = BufferedReader(InputStreamReader(inputStream, "utf-8"))
-            val tempList: MutableList<String> = ArrayList()
-            var line = reader.readLine()
-
-            while (line != null) {
-                tempList.add(line)
-                line = reader.readLine()
-            }
-
-            hostsList.clear()
-            hostsList.addAll(tempList)
-
-        } catch (e: IOException) {
-            e.printStackTrace()
-        } finally {
-            if (reader != null) {
-                try {
-                    reader.close()
-                } catch (e: IOException) {
-                    e.printStackTrace()
-                }
-            }
+        inputStream.source().buffer().use { source ->
+            generateSequence { source.readUtf8Line() }
+                    .forEach { line ->
+                        tempList.add(line)
+                    }
         }
 
-        Log.d(TAG, hostsList.size.toString())
+        hostsList.clear()
+        hostsList.addAll(tempList)
     }
 
     private fun loadHostFromServer() {
-        Thread(Runnable {
-            val url = URL("https://pgl.yoyo.org/as/serverlist.php?hostformat=nohtml&showintro=0")
-            val connection = url.openConnection()
-            connection.connect()
-            loadHostsFromInputStream(url.openStream())
-        }).start()
+        val url = "https://pgl.yoyo.org/as/serverlist.php?hostformat=nohtml&showintro=0"
+        val client = OkHttpClient.Builder().build()
+
+        val request = Request.Builder()
+                .url(url)
+                .build()
+        try {
+            client.newCall(request).enqueue(object : Callback {
+                override fun onResponse(call: Call, response: Response) {
+                    loadHostsFromInputStream(response.body?.byteStream())
+                }
+
+                override fun onFailure(call: Call, e: IOException) {
+                    e.printStackTrace()
+                }
+            })
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 }
