@@ -19,7 +19,7 @@ Step 2. Add the dependency
 
 ```groovy
 dependencies {
-		implementation 'com.github.islamdidarmd:AdBlockerWebview:0.1.0'
+		implementation 'com.github.islamdidarmd:AdBlockerWebview:$latest_version'
 	}
 ```
 
