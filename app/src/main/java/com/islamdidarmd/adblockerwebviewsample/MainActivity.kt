@@ -8,6 +8,7 @@ import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
+import com.islamdidarmd.adblockerwebview.AdBlockerUtil
 import kotlinx.android.synthetic.main.activity_main.*
 
 class MainActivity : AppCompatActivity() {
@@ -16,6 +17,8 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        AdBlockerUtil.getInstance().initialize(this)
 
         webview.settings.apply {
             javaScriptEnabled = true
@@ -42,7 +45,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         switchAdblock.setOnCheckedChangeListener { buttonView, isChecked ->
-            webview.setAdBlockEnabled(isChecked)
+            webview.setAdBlockerEnabled(isChecked)
         }
 
         btnGo.setOnClickListener {

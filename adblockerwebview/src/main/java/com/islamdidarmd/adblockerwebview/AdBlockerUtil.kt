@@ -2,37 +2,56 @@ package com.islamdidarmd.adblockerwebview
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import android.webkit.WebResourceResponse
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collect
 import okhttp3.*
+import okio.Okio
 import okio.buffer
 import okio.source
-import java.io.ByteArrayInputStream
-import java.io.IOException
-import java.io.InputStream
+import java.io.*
+import java.net.URL
+import kotlin.coroutines.suspendCoroutine
 
-class AdBlockerUtil(context: Context) {
-    val TAG = "AdBlockerUtil"
+class AdBlockerUtil private constructor() {
+    private var isStillLoading: Boolean = false
+
+    private val TAG = "AdBlockerUtil"
+
     private val AD_HOSTS_FILE_NAME = "adblocker_webview_hosts.txt"
     private val hostsList = mutableListOf<String>()
 
-    init {
-        CoroutineScope(Dispatchers.Default).launch {
-            //loading hostname from asset
-            withContext(Dispatchers.IO) {
-                try {
-                    loadHostsFromInputStream(context.assets.open(AD_HOSTS_FILE_NAME))
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
-            }
-            delay(200)
-            //updating list from server
+    companion object {
+        private val mInstance by lazy { AdBlockerUtil() }
+        fun getInstance(): AdBlockerUtil {
+            return mInstance
+        }
+    }
+
+    fun initialize(context: Context, scope: CoroutineScope = CoroutineScope(Dispatchers.Default)) {
+        scope.launch {
             loadHostFromServer()
+                    .collect { value: InputStream? ->
+                        try {
+                            val stream = value ?: context.assets.open(AD_HOSTS_FILE_NAME)
+                            loadHostsFromInputStream(stream)
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
         }
     }
 
     fun isAd(url: String?): Boolean {
+        if (isStillLoading) {
+            Log.e(TAG, "isAd: Host entries are still loading.")
+            return false
+        }
         if (url == null) return false
         val host = Uri.parse(url).host ?: return false
 
@@ -48,11 +67,8 @@ class AdBlockerUtil(context: Context) {
         return WebResourceResponse("text/plain", "utf-8", ByteArrayInputStream("".toByteArray()))
     }
 
-    private fun loadHostsFromInputStream(inputStream: InputStream?) {
-        if (inputStream == null) {
-            return
-        }
-
+    private fun loadHostsFromInputStream(inputStream: InputStream) {
+        isStillLoading = true
         val tempList: MutableList<String> = ArrayList()
 
         inputStream.source().buffer().use { source ->
@@ -64,9 +80,11 @@ class AdBlockerUtil(context: Context) {
 
         hostsList.clear()
         hostsList.addAll(tempList)
+        isStillLoading = false
     }
 
-    private fun loadHostFromServer() {
+    @ExperimentalCoroutinesApi
+    private fun loadHostFromServer() = callbackFlow<InputStream?> {
         val url = "https://pgl.yoyo.org/as/serverlist.php?hostformat=nohtml&showintro=0"
         val client = OkHttpClient.Builder().build()
 
@@ -76,15 +94,23 @@ class AdBlockerUtil(context: Context) {
         try {
             client.newCall(request).enqueue(object : Callback {
                 override fun onResponse(call: Call, response: Response) {
-                    loadHostsFromInputStream(response.body?.byteStream())
+                    offer(response.body?.byteStream())
+                    close()
                 }
 
                 override fun onFailure(call: Call, e: IOException) {
                     e.printStackTrace()
+                    offer(null)
+                    close()
                 }
             })
         } catch (e: Exception) {
             e.printStackTrace()
+
+            offer(null)
+            close()
         }
+
+        awaitClose()
     }
 }

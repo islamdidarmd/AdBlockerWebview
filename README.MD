@@ -35,10 +35,11 @@ Add AdBlockerWebview In your layout
 In your Activity or Fragment
 
 ```Kotlin
- webview.setAdBlockEnabled(true)
+ AdBlockerUtil.getInstance().initialize(context)
+ webview.setAdBlockerEnabled(true)
  webview.loadUrl("https://google.com")
 ```
 
-You can also extend `AdBlockerWebView` to add additional functionality
+You can also extend `AdBlockerWebView` to include additional functionality
 
 For a complete example, see the sample app

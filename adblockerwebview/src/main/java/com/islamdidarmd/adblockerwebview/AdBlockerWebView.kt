@@ -25,13 +25,11 @@ open class AdBlockerWebView : WebView {
             defStyleAttrs
     )
 
-    private val adBlockerUtil by lazy {
-        AdBlockerUtil(context)
-    }
+    private val adBlockerUtil = AdBlockerUtil.getInstance()
 
-    fun setAdBlockEnabled(enabled: Boolean) {
-        this._blockAds = enabled
-        if (BuildConfig.DEBUG) Log.d(TAG, "setAdBlockEnabled $enabled")
+    fun setAdBlockerEnabled(isEnabled: Boolean) {
+        this._blockAds = isEnabled
+        if (BuildConfig.DEBUG) Log.d(TAG, "setAdBlockEnabled $isEnabled")
     }
 
     init {
@@ -215,7 +213,11 @@ open class AdBlockerWebView : WebView {
                     resend: Message?
             ) {
                 client?.onFormResubmission(view, dontResend, resend)
-                super.onFormResubmission(view, dontResend, resend)
+                try {
+                    super.onFormResubmission(view, dontResend, resend)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
             }
 
             override fun onLoadResource(view: WebView?, url: String?) {
